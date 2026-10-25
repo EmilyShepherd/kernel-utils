@@ -23,7 +23,7 @@ pub mod raw;
 /// ```no_run
 /// use kmod_rs::modprobe::Modprobe;
 ///
-/// let mut modprobe = Modprobe::new();
+/// let mut modprobe = Modprobe::new().unwrap();
 /// modprobe.probe_exact("virtio-bt", "").unwrap();
 /// modprobe.probe_exact("virtio-pci", "").unwrap();
 ///
@@ -38,36 +38,104 @@ pub mod raw;
 /// ```no_run
 /// use kmod_rs::modprobe::Modprobe;
 ///
-/// let mut modprobe = Modprobe::new();
+/// let mut modprobe = Modprobe::new().unwrap();
 ///
 /// modprobe.probe_exact("virtio-bt", "").unwrap();
-/// modprobe.probe_exact("module-doesn't exist", "").unwrap();
+/// modprobe.probe_exact("module-doesn't exist", "").unwrap(); // This will fail
 ///
 /// // modprobe will fail in the checks above, ensuring we never get here, as a result
 /// // virtio-bt will also not be loaded.
 /// modprobe.execute().unwrap();
 /// ```
 pub struct Modprobe<'a> {
+    inner: StagedModprobe<'a>,
+    alias: hr_parser::AliasParser,
+}
+
+impl<'a> Modprobe<'a> {
+    /// Creates a new Modprobe manager using the default ModuleDir system location
+    pub fn new() -> Result<Self, std::io::Error> {
+        let mdir = ModuleDir::new();
+        let alias = hr_parser::AliasParser::new(&mdir)?;
+
+        Ok(Self {
+            inner: StagedModprobe::from_module_dir(mdir),
+            alias: alias,
+        })
+    }
+
+    /// Probes the given module which may be an alias
+    ///
+    /// When the given module string is an alias that maps to more than one real
+    /// module, each will be loaded. For this reason, specific parameters cannot be
+    /// used.
+    ///
+    /// If you know what module you want to use, it is better to use [Self::probe_exact]
+    /// with its non-aliased name, or [Self::probe_one] with an alias that only maps to
+    /// one real module.
+    ///
+    /// Use this method when you want to load enough to get a device working, such
+    /// as when responding to a udev event or looking at a modalias in sysfs.
+    pub fn probe_loose(&mut self, module: &str) -> Result<(), std::io::Error> {
+        match self.alias.lookup(module) {
+            None => self.inner.probe(module, ""),
+            Some(aliases) => {
+                for alias in aliases {
+                    self.inner.probe(&alias, "")?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// Probes the given module which may be an alias
+    ///
+    /// As this method allows parameters to be specified, it is expected that the given
+    /// module is either a non-alias, or it is an alias that only maps to one module.
+    ///
+    /// If it is an alias that maps to multiple modules, this method will fail. Use it
+    /// when you don't want extraneous modules to be loaded.
+    pub fn probe_one(&mut self, module: &str, params: &'a str) -> Result<(), std::io::Error> {
+        match self.alias.lookup(module) {
+            None => self.inner.probe(module, params),
+            Some(aliases) if aliases.len() == 1 => self.inner.probe(&aliases[0], params),
+            _ => Err(Error::new(ErrorKind::Other, "More than one module")),
+        }
+    }
+
+    /// Probes the given module name, skipping looking it up in the alias
+    /// list.
+    ///
+    /// Use this method when you know the given name is not an alias, so there
+    /// is no need to waste time looking it up.
+    pub fn probe_exact(&mut self, module: &str, params: &'a str) -> Result<(), std::io::Error> {
+        self.inner.probe(module, params)
+    }
+
+    /// Inserts all staged modules and parameters into the kernel.
+    pub fn execute(self) -> Result<(), raw::Error> {
+        self.inner.execute()
+    }
+}
+
+pub struct StagedModprobe<'a> {
     module_dir: ModuleDir,
 
     staged: Vec<(File, &'a str, raw::FinitFlags)>,
 }
 
-impl<'a> Modprobe<'a> {
+impl<'a> StagedModprobe<'a> {
     /// Creates a new Modprobe manager
-    pub fn new() -> Self {
+    pub fn from_module_dir(mdir: ModuleDir) -> Self {
         Self {
-            module_dir: ModuleDir::new(),
+            module_dir: mdir,
             staged: Vec::new(),
         }
     }
 
-    /// Stages a module for insertion without looking it up in the aliases first.
-    pub fn probe_exact(
-        &mut self,
-        module: &str,
-        params: &'a str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    /// Stages a module for insertion by looking up its dependencies and pre-opening
+    /// all module files for loading.
+    pub fn probe(&mut self, module: &str, params: &'a str) -> Result<(), std::io::Error> {
         let mut deps = hr_parser::DepParser::new(&self.module_dir)?;
 
         let mut modules = deps
@@ -150,11 +218,9 @@ mod test {
 
     #[test]
     fn probe_exact() {
-        let mut modprobe = Modprobe::new();
+        let mut modprobe = StagedModprobe::from_module_dir(ModuleDir::new());
 
-        modprobe
-            .probe_exact("virtio_bt", "test")
-            .expect("Probing works");
+        modprobe.probe("virtio_bt", "test").expect("Probing works");
 
         assert_eq!(3, modprobe.staged.len());
         assert_eq!(modprobe.staged[0].1, "");
