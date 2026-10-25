@@ -60,6 +60,34 @@ pub enum Error {
     ModuleInUse,
 }
 
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Error::NulError => "Params contained a null character",
+                Error::Permission => "The caller is not privileged to peform module action",
+                Error::FileTooBig => "The module file is too large",
+                Error::OutOfMemory => "The kernel ran out of memory",
+                Error::AlreadyLoaded => "A module with this name is already loaded",
+                Error::FileNotReadable => "The given module is not readable",
+                Error::InvalidSignature => "The module's signature is not valid",
+                Error::MisformattedSignature => "The module's signature is misformatted",
+                Error::DecompressionCheckFailed => "The module's decompression check failed",
+                Error::InvalidParamsOrBrokenELF =>
+                    "The module is not a valid ELF file, or the given params are incorrect",
+                Error::KernelDecompressionNotSupported => "Kernel Decompression is not supported",
+                Error::ModuleCannotBeUnloaded => "The module cannot be unloaded",
+                Error::ModuleDoesNotExist => "The module does not exist",
+                Error::ModuleInUse => "The module is currently in use",
+            }
+        )
+    }
+}
+
 bitflags! {
     /// Flags for [finit_module].
     #[derive(Debug)]
