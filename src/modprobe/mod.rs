@@ -99,7 +99,13 @@ impl<'a> Modprobe<'a> {
     /// Inserts all staged modules and parameters into the kernel.
     pub fn execute(self) -> Result<(), raw::Error> {
         for (module, params, flags) in self.staged {
-            raw::finit_module(module, params, flags)?;
+            raw::finit_module(module, params, flags).or_else(|err| match err {
+                // A module being already loaded ain't no big deal.
+                // Modprobe only wants to assure modules get loaded, if they can't
+                // be loaded because they already are, well that's fine.
+                raw::Error::AlreadyLoaded => Ok(()),
+                e => Err(e),
+            })?;
         }
 
         Ok(())
