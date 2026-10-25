@@ -85,12 +85,12 @@ impl DepParser {
                 continue;
             }
 
-            let mut ret: Vec<_> = deps
-                .split(' ')
-                .filter(|dep| !dep.is_empty())
-                .map(|dep| dep.to_string())
-                .collect();
-            ret.push(module.to_string());
+            let mut ret = vec![module.to_string()];
+            ret.extend(
+                deps.split(' ')
+                    .filter(|dep| !dep.is_empty())
+                    .map(|dep| dep.to_string()),
+            );
 
             return Ok(Some(ret));
         }
@@ -191,9 +191,9 @@ mod deps_test {
         assert_eq!(
             ret,
             vec![
+                "kernel/drivers/leds/leds-lm3533.ko.zst",
                 "kernel/drivers/mfd/lm3533-ctrlbank.ko.zst",
                 "kernel/drivers/mfd/lm3533-core.ko.zst",
-                "kernel/drivers/leds/leds-lm3533.ko.zst",
             ]
         );
     }
