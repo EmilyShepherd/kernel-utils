@@ -1,6 +1,11 @@
 [package]
 name = "kernel-utils"
 description = "Rust implementation of linux kernel module management"
+license = "BSD-3-Clause"
+license-file = "LICENSE"
+keywords = ["kernel", "modules", "modprobe", "uname", "kmod"]
+categories = ["os", "os::linux-apis"]
+exclude = [".gitignore"]
 version = "0.1.0"
 edition = "2024"
 
