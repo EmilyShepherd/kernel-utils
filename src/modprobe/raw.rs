@@ -115,7 +115,7 @@ bitflags! {
 ///
 /// ```no_run
 /// use std::fs::File;
-/// use kmod_rs::modprobe::raw::{finit_module, FinitFlags};
+/// use kernel_utils::modprobe::raw::{finit_module, FinitFlags};
 ///
 /// let module_file =
 ///     File::open("/lib/modules/7.2.11/kernel/drivers/net/virtio_net.ko").unwrap();
@@ -127,7 +127,7 @@ bitflags! {
 ///
 /// ```no_run
 /// use std::fs::File;
-/// use kmod_rs::modprobe::raw::{finit_module, FinitFlags};
+/// use kernel_utils::modprobe::raw::{finit_module, FinitFlags};
 ///
 /// let module_file =
 ///     File::open("/lib/modules/7.2.11/kernel/drivers/net/virtio_net.ko.zst").unwrap();

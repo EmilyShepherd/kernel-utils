@@ -21,7 +21,7 @@ pub mod raw;
 /// Loading multiple modules successfully:
 ///
 /// ```no_run
-/// use kmod_rs::modprobe::Modprobe;
+/// use kernel_utils::modprobe::Modprobe;
 ///
 /// let mut modprobe = Modprobe::new().unwrap();
 /// modprobe.probe_exact("virtio-bt", "").unwrap();
@@ -36,7 +36,7 @@ pub mod raw;
 /// An example of a failed module protection:
 ///
 /// ```no_run
-/// use kmod_rs::modprobe::Modprobe;
+/// use kernel_utils::modprobe::Modprobe;
 ///
 /// let mut modprobe = Modprobe::new().unwrap();
 ///
